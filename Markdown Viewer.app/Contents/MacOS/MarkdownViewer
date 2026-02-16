@@ -1,0 +1,9 @@
+#!/bin/bash
+# Markdown Viewer launcher
+# Finds the Resources directory and launches the Python app
+
+CONTENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+
+# Launch with any file arguments passed (e.g., double-clicking a .md file)
+exec /usr/bin/python "$RESOURCES_DIR/viewer.py" "$@"
