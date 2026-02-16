@@ -78,6 +78,12 @@ The app has two main components:
 > This viewer was built to be self-contained with no external dependencies
 > beyond what ships with Python 2.5 on Mac OS X.
 
+## How It Was Built
+
+This application was written entirely on a PowerPC Mac G4 running Mac OS X 10.5 Leopard, with the help of [Relic](https://github.com/reichenbach/relic-cli) — a lightweight Claude client for vintage Macs. Relic provided an AI coding assistant directly in the Leopard Terminal, and Claude designed, wrote, and debugged every file in this project on that machine.
+
+No modern IDE, no web browser, no internet access on the Mac itself — just a Python 2.5 terminal client talking to Claude through a relay server on the local network.
+
 ---
 
 *Made with care for the PowerPC Mac community.*
