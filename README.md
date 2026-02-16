@@ -3,6 +3,8 @@
 A lightweight Markdown viewer built with **Python 2.5** and **Tkinter**, designed
 to run on vintage PowerPC Macs running Mac OS X 10.5 Leopard.
 
+![Markdown Viewer running on Mac OS X Leopard](screenshot.png)
+
 ## Features
 
 - **Rich text rendering** of Markdown documents
