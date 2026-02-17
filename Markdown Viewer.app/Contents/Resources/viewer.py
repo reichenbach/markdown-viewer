@@ -108,6 +108,9 @@ class MarkdownViewer(object):
                               accelerator="Command-C")
         edit_menu.add_command(label="Select All", command=self.cmd_select_all,
                               accelerator="Command-A")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Find...", command=self.cmd_find,
+                              accelerator="Command-F")
         menubar.add_cascade(label="Edit", menu=edit_menu)
 
         view_menu = tk.Menu(menubar, tearoff=0)
@@ -155,6 +158,47 @@ class MarkdownViewer(object):
         )
         self.text.pack(fill=tk.BOTH, expand=True)
         self.scrollbar.config(command=self.text.yview)
+
+        # Find bar (hidden by default)
+        self.find_frame = tk.Frame(self.root, bg="#E8E8D8", height=30)
+        self.find_frame.pack_propagate(False)
+        self.find_visible = False
+
+        find_label = tk.Label(self.find_frame, text="Find:",
+                              bg="#E8E8D8", fg="#333333",
+                              font=tkFont.Font(size=11))
+        find_label.pack(side=tk.LEFT, padx=(10, 4))
+
+        self.find_entry = tk.Entry(self.find_frame, width=30,
+                                    font=tkFont.Font(size=11),
+                                    highlightthickness=1,
+                                    relief=tk.SOLID)
+        self.find_entry.pack(side=tk.LEFT, padx=2, pady=4)
+        self.find_entry.bind('<Return>', lambda e: self._do_find())
+        self.find_entry.bind('<Escape>', lambda e: self._hide_find_bar())
+
+        find_btn = tk.Button(self.find_frame, text="Next",
+                             command=self._do_find,
+                             font=tkFont.Font(size=10))
+        find_btn.pack(side=tk.LEFT, padx=4)
+
+        find_prev_btn = tk.Button(self.find_frame, text="Prev",
+                                   command=self._do_find_prev,
+                                   font=tkFont.Font(size=10))
+        find_prev_btn.pack(side=tk.LEFT, padx=2)
+
+        self.find_count_label = tk.Label(self.find_frame, text="",
+                                          bg="#E8E8D8", fg="#666666",
+                                          font=tkFont.Font(size=10))
+        self.find_count_label.pack(side=tk.LEFT, padx=8)
+
+        find_close_btn = tk.Button(self.find_frame, text="\xC3\x97",
+                                    command=self._hide_find_bar,
+                                    font=tkFont.Font(size=11),
+                                    relief=tk.FLAT, bg="#E8E8D8")
+        find_close_btn.pack(side=tk.RIGHT, padx=6)
+
+        self.find_pos = '1.0'
 
         # Status bar
         self.statusbar = tk.Frame(self.root, bg="#E0E0E0", height=22)
@@ -211,6 +255,18 @@ class MarkdownViewer(object):
         t.tag_configure('hr', foreground=self.HR_COLOR, justify=tk.CENTER,
                          spacing1=8, spacing3=8)
 
+        t.tag_configure('link_text', font=self.fonts['normal'],
+                         foreground=self.ACCENT_COLOR, underline=True)
+        t.tag_configure('link_url', font=self.fonts['code'],
+                         foreground="#888888")
+        t.tag_configure('image_icon', font=self.fonts['bold'],
+                         foreground="#D4882A")
+
+        t.tag_configure('find_highlight', background="#FFFF00",
+                         foreground="#000000")
+        t.tag_configure('find_current', background="#FF9632",
+                         foreground="#000000")
+
     def _bind_keys(self):
         self.root.bind('<Command-o>', lambda e: self.cmd_open())
         self.root.bind('<Command-O>', lambda e: self.cmd_open())
@@ -224,6 +280,9 @@ class MarkdownViewer(object):
         self.root.bind('<Command-0>', lambda e: self.cmd_zoom_reset())
         self.root.bind('<Command-a>', lambda e: self.cmd_select_all())
         self.root.bind('<Command-A>', lambda e: self.cmd_select_all())
+        self.root.bind('<Command-f>', lambda e: self.cmd_find())
+        self.root.bind('<Command-F>', lambda e: self.cmd_find())
+        self.root.bind('<Escape>', lambda e: self._hide_find_bar())
         self.text.bind('<MouseWheel>', self._on_mousewheel)
 
     def _on_mousewheel(self, event):
@@ -236,15 +295,19 @@ class MarkdownViewer(object):
             "## Getting Started\n\n"
             "- Use **File > Open** (or **Cmd+O**) to open a `.md` file\n"
             "- Use **Cmd+R** to reload the current file\n"
-            "- Use **Cmd+** / **Cmd-** to zoom in and out\n\n"
+            "- Use **Cmd+** / **Cmd-** to zoom in and out\n"
+            "- Use **Cmd+F** to search within the document\n\n"
             "## Supported Markdown\n\n"
             "- **Bold**, *italic*, and ***bold italic***\n"
+            "- Nested formatting like ***bold and italic*** inside *an italic phrase*\n"
             "- `Inline code` and fenced code blocks\n"
             "- Headings (H1 through H6)\n"
             "- Ordered and unordered lists\n"
             "- Blockquotes\n"
             "- Horizontal rules\n"
-            "- ~~Strikethrough~~\n\n"
+            "- ~~Strikethrough~~\n"
+            "- [Links](https://example.com) with visible URLs\n"
+            "- ![Image references](path/to/image.png) displayed as paths\n\n"
             "---\n\n"
             "*Built for Mac OS X Leopard on PowerPC*\n"
         )
@@ -366,6 +429,115 @@ class MarkdownViewer(object):
             current = font.cget("size")
             new_size = max(8, current + delta)
             font.configure(size=new_size)
+
+    def cmd_find(self):
+        """Show the find bar and focus the entry."""
+        if not self.find_visible:
+            self.find_frame.pack(fill=tk.X, side=tk.BOTTOM,
+                                 before=self.statusbar)
+            self.find_visible = True
+        self.find_entry.focus_set()
+        self.find_entry.selection_range(0, tk.END)
+
+    def _hide_find_bar(self):
+        """Hide the find bar and clear highlights."""
+        if self.find_visible:
+            self.find_frame.pack_forget()
+            self.find_visible = False
+            self.text.tag_remove('find_highlight', '1.0', tk.END)
+            self.text.tag_remove('find_current', '1.0', tk.END)
+            self.find_count_label.config(text="")
+            self.find_pos = '1.0'
+
+    def _do_find(self):
+        """Find next occurrence of the search term."""
+        query = self.find_entry.get()
+        if not query:
+            return
+
+        # Clear previous highlights
+        self.text.tag_remove('find_highlight', '1.0', tk.END)
+        self.text.tag_remove('find_current', '1.0', tk.END)
+
+        # Highlight all matches
+        count_var = tk.StringVar()
+        total = 0
+        start = '1.0'
+        while True:
+            pos = self.text.search(query, start, stopindex=tk.END,
+                                    nocase=True, count=count_var)
+            if not pos:
+                break
+            total += 1
+            end = '%s+%sc' % (pos, count_var.get())
+            self.text.tag_add('find_highlight', pos, end)
+            start = end
+
+        if total == 0:
+            self.find_count_label.config(text="Not found")
+            self.find_pos = '1.0'
+            return
+
+        # Find next from current position
+        pos = self.text.search(query, self.find_pos, stopindex=tk.END,
+                                nocase=True, count=count_var)
+        if not pos:
+            # Wrap around
+            pos = self.text.search(query, '1.0', stopindex=tk.END,
+                                    nocase=True, count=count_var)
+
+        if pos:
+            end = '%s+%sc' % (pos, count_var.get())
+            self.text.tag_add('find_current', pos, end)
+            self.text.see(pos)
+            self.find_pos = end
+            self.find_count_label.config(text="%d found" % total)
+
+    def _do_find_prev(self):
+        """Find previous occurrence of the search term."""
+        query = self.find_entry.get()
+        if not query:
+            return
+
+        # Clear previous highlights
+        self.text.tag_remove('find_highlight', '1.0', tk.END)
+        self.text.tag_remove('find_current', '1.0', tk.END)
+
+        # Highlight all matches
+        count_var = tk.StringVar()
+        total = 0
+        start = '1.0'
+        while True:
+            pos = self.text.search(query, start, stopindex=tk.END,
+                                    nocase=True, count=count_var)
+            if not pos:
+                break
+            total += 1
+            end = '%s+%sc' % (pos, count_var.get())
+            self.text.tag_add('find_highlight', pos, end)
+            start = end
+
+        if total == 0:
+            self.find_count_label.config(text="Not found")
+            self.find_pos = '1.0'
+            return
+
+        # Search backwards from current position
+        pos = self.text.search(query, self.find_pos, stopindex='1.0',
+                                nocase=True, count=count_var,
+                                backwards=True)
+        if not pos:
+            # Wrap to end
+            pos = self.text.search(query, tk.END, stopindex='1.0',
+                                    nocase=True, count=count_var,
+                                    backwards=True)
+
+        if pos:
+            end = '%s+%sc' % (pos, count_var.get())
+            self.text.tag_add('find_current', pos, end)
+            self.text.see(pos)
+            self.find_pos = pos
+            self.find_count_label.config(text="%d found" % total)
 
 
 def main():

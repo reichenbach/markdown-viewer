@@ -24,6 +24,8 @@
 	<string>6.0</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Markdown Viewer 1.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.4</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
