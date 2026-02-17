@@ -1,5 +1,7 @@
 # Markdown Viewer for PowerPC Mac
 
+![Markdown Viewer running on Mac OS X Leopard](screenshot.png)
+
 A lightweight Markdown viewer built with **Python 2.5** and **Tkinter**, designed
 to run on vintage PowerPC Macs running Mac OS X 10.5 Leopard.
 
