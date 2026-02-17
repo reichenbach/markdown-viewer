@@ -1,1 +1,3 @@
 *.pyc
+*.dmg
+.dmg_staging/
